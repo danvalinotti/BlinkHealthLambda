@@ -54,7 +54,7 @@ exports.myhandler = async function abc(){
         //console.log("listdrugs2:"+k)
         //if(k<=len){
         // console.log(listDrugs[k]);
-        var drugUrlList = await client.query("SELECT * FROM drug_request where program_id = 5 and zipcode is not null and ndc is not null and quantity is not null and brand_indicator is not null and drug_id :: int ="+listDrugs[k]);
+        var drugUrlList = await client.query("SELECT * FROM drug_request where program_id = 5 and quantity is not null and good_rx_id is not null and drug_id :: int ="+listDrugs[k]);
          if(drugUrlList.rows.length == 1){
         drugUrlList.rows[0].drug_name = drugUrlList.rows[0].drug_name.replace(' ', '-')
         drugUrlList.rows[0].drug_name = drugUrlList.rows[0].drug_name.replace('/', '-')
