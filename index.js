@@ -7,6 +7,13 @@ var reg = process.env.REGION;
 
 // const connectionString = 'postgresql://postgres:secret@10.80.1.121:5432/apid'
 const connectionString = db_host;
+function comparePrices(a,b){
+    if(a.price === null) return 1;
+    if(b.price === null) return -1;
+    if(a.price > b.price) return 1;
+    if(b.price >= a.price) return -1;
+}
+
 function DateFunction(){
     var today = new Date();
     var date = today.getFullYear()+'-'+(today.getMonth()+1)+'-'+today.getDate();
@@ -59,20 +66,104 @@ exports.myhandler = async function abc(){
         drugUrlList.rows[0].drug_name = drugUrlList.rows[0].drug_name.replace(' ', '-')
         drugUrlList.rows[0].drug_name = drugUrlList.rows[0].drug_name.replace('/', '-')
     url1 = "https://www.blinkhealth.com/api/v2/user/drugs/detail/"+drugUrlList.rows[0].drug_name+"/dosage/"+drugUrlList.rows[0].good_rx_id+"/quantity/"+drugUrlList.rows[0].quantity;
-    // https://www.blinkhealth.com/api/v2/drugs/detail/lipitor/dosage/209964/quantity/234
+    
+    var CVSPrice = {};
+    CVSPrice.price = null ;
+    CVSPrice.pharmacy=null;
+    CVSPrice.rank = 0;
+    var WalmartPrice = {};
+    WalmartPrice.price =  null;
+    WalmartPrice.pharmacy=null;
+    WalmartPrice.rank = 0;
+    var WalgreenPrice = {};
+    WalgreenPrice.price =  null;
+    WalgreenPrice.pharmacy=null;
+    WalgreenPrice.rank = 0;
+    var KrogerPrice = {};
+    KrogerPrice.price =  null ;
+    KrogerPrice.pharmacy =null;
+    KrogerPrice.rank = 0;
+    var OtherPrice = {};
+    OtherPrice.price =  null ;
+    OtherPrice.pharmacy =null;
+    OtherPrice.rank = 0;
+   
+    //https://www.blinkhealth.com/api/v2/drugs/detail/lipitor/dosage/209964/quantity/234
      await rp(url1)
             .then(async function (response) {
-                // console.log(url1)
-                let jsondata = JSON.parse(response);
-                pricingData1.price = jsondata.result.price.edlp.display_value;
-                pricingData1.price = parseFloat(pricingData1.price.replace('$', ''));
-                console.log("price="+pricingData1.price);
-                const query2 = 'INSERT INTO public_price(average_price, createdat, difference, drug_details_id, lowest_market_price, pharmacy, price, program_id, recommended_price) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *';
-                const values = [pricingData1.average_price, pricingData1.createdat, pricingData1.difference, drugUrlList.rows[0].drug_id, pricingData1.lowest_market_price,pricingData1.pharmacy,pricingData1.price,pricingData1.program_id,pricingData1.recommended_price];
-                await client.query(query2, values)
-                    .then(res => {
-                    })
-                    .catch(e => {console.log("errr")})
+               let jsondata = JSON.parse(response);
+                var edlpPrice= jsondata.result.price.edlp.raw_value;
+                
+                var url2 = "https://www.blinkhealth.com/api/v2/pharmacies/full?limit=20&search="+drugUrlList.rows[0].zipcode+"&allow_out_of_network=false&c_app=rx&c_platform=web&c_timestamp=1569270466508";
+                await rp(url2).then(async function (r) {
+                    console.log(r)
+                    console.log(url2)
+                    r= JSON.parse(r);
+                    r.result.results.forEach(function(value){
+                        console.log("value")
+                        console.log(value)
+                    if(value!= null && value.in_network == true){
+                        if(value.name.toUpperCase().includes("CVS")){
+                                CVSPrice.price =  edlpPrice;
+                                CVSPrice.pharmacy=value.name;
+                        }else if(value.name.toUpperCase().includes("WALMART")){
+                          
+                                WalmartPrice.price =  edlpPrice;
+                                WalmartPrice.pharmacy=value.name;
+                        
+                      
+                        }else if(value.name.toUpperCase().includes("WALGREENS")){
+                            
+                                WalgreenPrice.price = edlpPrice;
+                                WalgreenPrice.pharmacy=value.name;
+                           
+                       
+                        }else if(value.name.toUpperCase().includes("KROGER")){
+                           
+                                KrogerPrice.price = edlpPrice ;
+                                KrogerPrice.pharmacy=value.name;
+                            
+                       
+                        }else {
+                           
+                                OtherPrice.price = edlpPrice ;
+                                OtherPrice.pharmacy=value.name;
+                          
+                        
+                        }
+                     
+                    }
+                });
+                var pricesArr = [WalgreenPrice,WalmartPrice,CVSPrice,OtherPrice, KrogerPrice];
+                console.log("pricesArr")
+                console.log(pricesArr)
+              
+                pricesArr.sort(comparePrices)
+                
+                pricesArr[0].rank = 0;
+                pricesArr[1].rank = 1;
+                pricesArr[2].rank = 2;
+                pricesArr[3].rank = 3;
+                pricesArr[4].rank = 4;
+                
+                console.log(pricesArr)
+                pricesArr.forEach(async function (price){
+                    pricingData1.price = price.price;
+                    pricingData1.pharmacy = price.pharmacy;
+                    pricingData1.rank = price.rank;
+                
+                    // console.log(url1)
+                    let jsondata = JSON.parse(response);
+                    
+                    console.log("price="+pricingData1.price);
+                    const query2 = 'INSERT INTO public_price(average_price, createdat, difference, drug_details_id, lowest_market_price, pharmacy, price, program_id, recommended_price,rank) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *';
+                    const values = [pricingData1.average_price, pricingData1.createdat, pricingData1.difference, drugUrlList.rows[0].drug_id, pricingData1.lowest_market_price,pricingData1.pharmacy,pricingData1.price,pricingData1.program_id,pricingData1.recommended_price,pricingData1.rank];
+                    await client.query(query2, values)
+                        .then(res => {
+                        })
+                        .catch(e => {console.log("errr")})
+                    });
+                });
             })
             .catch(function (err) {
                 console.log(err)
