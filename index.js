@@ -38,6 +38,7 @@ let pricingData1 = {
     price : 0,
     program_id : 5,
     recommended_price : 0,
+    unc_price_flag:false
 }
 
 //let results =""
@@ -156,8 +157,8 @@ exports.myhandler = async function abc(){
                     let jsondata = JSON.parse(response);
                     
                     console.log("price="+pricingData1.price);
-                    const query2 = 'INSERT INTO public_price(average_price, createdat, difference, drug_details_id, lowest_market_price, pharmacy, price, program_id, recommended_price,rank) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *';
-                    const values = [pricingData1.average_price, pricingData1.createdat, pricingData1.difference, drugUrlList.rows[0].drug_id, pricingData1.lowest_market_price,pricingData1.pharmacy,pricingData1.price,pricingData1.program_id,pricingData1.recommended_price,pricingData1.rank];
+                    const query2 = 'INSERT INTO public_price(average_price, createdat, difference, drug_details_id, lowest_market_price, pharmacy, price, program_id, recommended_price,rank, unc_price_flag) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *';
+                    const values = [pricingData1.average_price, pricingData1.createdat, pricingData1.difference, drugUrlList.rows[0].drug_id, pricingData1.lowest_market_price,pricingData1.pharmacy,pricingData1.price,pricingData1.program_id,pricingData1.recommended_price, pricingData1.rank, false];
                     await client.query(query2, values)
                         .then(res => {
                         })
